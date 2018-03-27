@@ -113,11 +113,13 @@ contract PoWAdvCoinToken is ERC20Interface, Owned {
     uint public _totalSupply;
 
     uint public latestDifficultyPeriodStarted;
+    uint public firstValidBlockNumber;
 
     uint public epochCount; //number of 'blocks' mined
 
     uint public _BLOCKS_PER_READJUSTMENT = 16;
-    uint public _TARGET_EPOCH_PER_PEDIOD = _BLOCKS_PER_READJUSTMENT * 60;
+    // avg ETH block period is ~10sec this is 60 roughly block per 10min
+    uint public _TARGET_EPOCH_PER_PEDIOD = _BLOCKS_PER_READJUSTMENT * 60; 
     uint public _BLOCK_REWARD = (250 * 10**uint(8));
     //a little number
     uint public  _MINIMUM_TARGET = 2**16;
@@ -155,16 +157,19 @@ contract PoWAdvCoinToken is ERC20Interface, Owned {
         tokensMinted = 0;
         miningTarget = _MAXIMUM_TARGET;
         latestDifficultyPeriodStarted = block.number;
+        firstValidBlockNumber =  5349511;
         _startNewMiningEpoch();
 
         // Sum of tokens mined before hard fork, will be distributed manually
-        epochCount = 7071;
+        epochCount = 3071;
         balances[owner] = epochCount * _BLOCK_REWARD;
         tokensMinted = epochCount * _BLOCK_REWARD;
     }
  
 	function mint(uint256 nonce, bytes32 challenge_digest) public returns (bool success) {
 
+        require(block.number > firstValidBlockNumber);
+            
 		//the PoW must contain work that includes a recent ethereum block hash (challenge number) and the msg.sender's address to prevent MITM attacks
 		bytes32 digest = keccak256(challengeNumber, msg.sender, nonce);
 
@@ -192,7 +197,7 @@ contract PoWAdvCoinToken is ERC20Interface, Owned {
 	
 		_startNewMiningEpoch();
 
-		emit Mint(msg.sender, reward_amount, epochCount, challengeNumber );
+		emit Mint(msg.sender, reward_amount, epochCount, challengeNumber);
 
 		return true;
 	}
@@ -214,7 +219,6 @@ contract PoWAdvCoinToken is ERC20Interface, Owned {
 
         uint ethBlocksSinceLastDifficultyPeriod = block.number - latestDifficultyPeriodStarted;
 
-        //assume 360 ethereum blocks per hour
         //we want miners to spend 10 minutes to mine each 'block', about 60 ethereum blocks = one POWA epoch
         uint targetEthBlocksPerDiffPeriod = _TARGET_EPOCH_PER_PEDIOD; //should be X times slower than ethereum
 
